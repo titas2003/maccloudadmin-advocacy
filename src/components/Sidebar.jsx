@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logoutAdmin, selectAdmin } from '../store/authSlice';
 import {
   LayoutDashboard, Users, Scale, CalendarDays,
-  ShieldCheck, CreditCard, BarChart3, Settings,
+  ShieldCheck, CreditCard, BarChart3, Settings, Sliders,
   ChevronLeft, ChevronRight, LogOut, Menu, X
 } from 'lucide-react';
 
@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { label: 'Verifications',icon: ShieldCheck,     to: '/verifications' },
   { label: 'Financials',   icon: CreditCard,      to: '/financials' },
   { label: 'Analytics',    icon: BarChart3,       to: '/analytics' },
-  { label: 'Settings',     icon: Settings,        to: '/settings' },
+  { label: 'Admin Controls', icon: Sliders,        to: '/settings' },
 ];
 
 export default function Sidebar() {

@@ -13,6 +13,7 @@ export default function Verifications() {
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
   const fetchPending = useCallback(async () => {
@@ -29,6 +30,14 @@ export default function Verifications() {
 
   useEffect(() => { fetchPending(); }, [fetchPending]);
 
+  const filteredAdvocates = advocates.filter(a => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return a.name?.toLowerCase().includes(q) || 
+           a.email?.toLowerCase().includes(q) || 
+           a.advId?.toLowerCase().includes(q);
+  });
+
   return (
     <Layout>
       <div className="mb-7 flex items-end justify-between">
@@ -42,6 +51,19 @@ export default function Verifications() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <div className="relative w-full md:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name, email, ADV ID..."
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50"
+            />
+          </div>
+        </div>
+
         {loading ? (
           <div className="py-16 text-center text-slate-400 text-sm">Loading pending verifications...</div>
         ) : advocates.length === 0 ? (
@@ -62,7 +84,7 @@ export default function Verifications() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {advocates.map(adv => (
+                {filteredAdvocates.map(adv => (
                   <tr key={adv._id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">

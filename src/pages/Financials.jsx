@@ -22,6 +22,7 @@ export default function Financials() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('All');
+  const [search, setSearch] = useState('');
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -47,6 +48,14 @@ export default function Financials() {
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
   useEffect(() => { setPage(1); }, [statusFilter]);
 
+  const filteredTxns = transactions.filter(t => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return t.clientId?.name?.toLowerCase().includes(q) || 
+           t.advocateId?.name?.toLowerCase().includes(q) ||
+           (t.stripeSessionId && t.stripeSessionId.toLowerCase().includes(q));
+  });
+
   return (
     <Layout>
       <div className="mb-7 flex items-end justify-between">
@@ -60,7 +69,17 @@ export default function Financials() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row gap-3 items-center justify-between">
+        <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search user or Txn ID..."
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 bg-slate-50"
+            />
+          </div>
           <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-thin">
             <Filter size={14} className="text-slate-400 shrink-0" />
             {STATUSES.map(s => (
@@ -93,7 +112,7 @@ export default function Financials() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {transactions.map(txn => (
+                {filteredTxns.map(txn => (
                   <tr key={txn._id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-5 py-3.5 font-mono text-xs font-bold text-slate-500">{txn.stripeSessionId?.slice(-8) || txn._id.slice(-8)}</td>
                     <td className="px-5 py-3.5 text-xs text-slate-600 font-semibold">{txn.type === 'deposit' ? 'Client Payment' : 'Advocate Payout'}</td>
