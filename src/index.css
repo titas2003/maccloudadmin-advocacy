@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --brand: #1a2b4b;
+    --brand-light: #2d4a7a;
+    --accent: #3b82f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+}
