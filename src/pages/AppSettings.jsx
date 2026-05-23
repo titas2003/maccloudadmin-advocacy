@@ -16,6 +16,10 @@ export default function AppSettings() {
   const [editingBracket, setEditingBracket] = useState(null); // bracketKey
   const [editForm, setEditForm] = useState({ defaultFee: '', maxFee: '' });
 
+  // Notification Modal State
+  const [notifyModal, setNotifyModal] = useState({ show: false, status: 'confirm' }); // confirm | sending | done
+  const [progress, setProgress] = useState(0);
+
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
@@ -107,24 +111,40 @@ export default function AppSettings() {
     setEditForm({ defaultFee: policy.defaultFee, maxFee: policy.maxFee });
   };
 
-  const handleSendNotification = async (e) => {
+  const initiateNotification = (e) => {
     e.preventDefault();
     if (!notification.subject.trim() || !notification.message.trim()) return;
-    if (!window.confirm(`Send bulk notification to all ${notification.target}?`)) return;
+    setNotifyModal({ show: true, status: 'confirm' });
+  };
+
+  const executeSendNotification = async () => {
+    setNotifyModal({ show: true, status: 'sending' });
+    setProgress(0);
     
+    const progressInterval = setInterval(() => {
+      setProgress(p => (p < 90 ? p + 15 : p));
+    }, 200);
+
     setLoadingAction('notify');
     try {
       const { data } = await api.post(`/admin/notifications/${notification.target}`, {
         subject: notification.subject,
-        message: notification.message
+        bodyHtml: notification.message
       });
+      
+      clearInterval(progressInterval);
+      setProgress(100);
+      
       if (data.success) {
-        showToast(`Notification sent to ${notification.target} successfully`);
+        setTimeout(() => setNotifyModal({ show: true, status: 'done' }), 400);
         setNotification({ ...notification, subject: '', message: '' });
       } else {
+        setNotifyModal({ show: false, status: 'confirm' });
         showToast(data.message, 'error');
       }
     } catch (e) {
+      clearInterval(progressInterval);
+      setNotifyModal({ show: false, status: 'confirm' });
       showToast(e.response?.data?.message || 'Failed to send notification', 'error');
     }
     setLoadingAction(null);
@@ -211,7 +231,7 @@ export default function AppSettings() {
               <p className="text-xs text-slate-500">Send platform-wide announcements via email.</p>
             </div>
           </div>
-          <form onSubmit={handleSendNotification} className="p-5 space-y-5 flex-1 flex flex-col">
+          <form onSubmit={initiateNotification} className="p-5 space-y-5 flex-1 flex flex-col">
             
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Target Audience</label>
@@ -372,6 +392,73 @@ export default function AppSettings() {
           )}
         </div>
       </div>
+
+      {/* Custom Notification Modal */}
+      {notifyModal.show && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {notifyModal.status === 'confirm' && (
+              <div className="p-6">
+                <div className="mx-auto w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                  <Send size={24} />
+                </div>
+                <h3 className="text-center text-lg font-bold text-slate-800 mb-2">Send Notification?</h3>
+                <p className="text-center text-sm text-slate-500 mb-6">
+                  Are you sure you want to broadcast this message to all <strong>{notification.target}</strong>? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setNotifyModal({ show: false, status: 'confirm' })}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={executeSendNotification}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/30"
+                  >
+                    Yes, Send It
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {notifyModal.status === 'sending' && (
+              <div className="p-8 text-center">
+                <div className="mb-4">
+                  <RefreshCw size={32} className="mx-auto text-blue-500 animate-spin" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Sending Notifications</h3>
+                <p className="text-sm text-slate-500 mb-6">Please do not close this window...</p>
+                
+                <div className="w-full bg-slate-100 rounded-full h-3 mb-2 overflow-hidden">
+                  <div 
+                    className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out" 
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+                <span className="text-xs font-bold text-blue-600">{progress}%</span>
+              </div>
+            )}
+
+            {notifyModal.status === 'done' && (
+              <div className="p-8 text-center animate-in zoom-in slide-in-from-bottom-2">
+                <div className="mx-auto w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-4 ring-8 ring-green-50">
+                  <CheckCircle size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Successfully Sent!</h3>
+                <p className="text-sm text-slate-500 mb-6">Your message has been broadcasted to all {notification.target}.</p>
+                <button 
+                  onClick={() => setNotifyModal({ show: false, status: 'confirm' })}
+                  className="w-full py-3 rounded-xl font-bold text-sm text-white bg-slate-800 hover:bg-slate-900 transition-colors"
+                >
+                  Close Window
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </Layout>
   );

@@ -36,91 +36,90 @@ export default function Dashboard() {
   });
 
   const [healthModal, setHealthModal] = useState(null);
+  const [isMonitoringLogs, setIsMonitoringLogs] = useState(true);
 
+  // 1. Define Fetch Functions
+  const fetchDashboardData = async () => {
+    try {
+      const [advRes, clientRes, apptRes, verifRes, finRes] = await Promise.allSettled([
+        api.get('/admin/advocates', { params: { limit: 1 } }),
+        api.get('/admin/clients', { params: { limit: 1 } }),
+        api.get('/admin/appointments', { params: { limit: 1 } }),
+        api.get('/admin/advocates', { params: { limit: 1, status: 'Pending' } }),
+        api.get('/admin/system/financials')
+      ]);
+      setStats({
+        advocates: advRes.status === 'fulfilled' ? advRes.value.data.pagination.total : 0,
+        clients: clientRes.status === 'fulfilled' ? clientRes.value.data.pagination.total : 0,
+        appointments: apptRes.status === 'fulfilled' ? apptRes.value.data.pagination.total : 0,
+        verifications: verifRes.status === 'fulfilled' ? verifRes.value.data.pagination.total : 0,
+        revenue: finRes.status === 'fulfilled' ? finRes.value.data.data.totalPlatformFees : 0,
+        loading: false
+      });
+    } catch (err) {
+      setStats(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const fetchLogs = async () => {
+    try {
+      const [adminRes, advRes, clientRes] = await Promise.allSettled([
+        api.get('/admin/activity/admin', { params: { limit: 10 } }),
+        api.get('/admin/activity/advocate', { params: { limit: 10 } }),
+        api.get('/admin/activity/client', { params: { limit: 10 } })
+      ]);
+      setLogs({
+        admin: adminRes.status === 'fulfilled' ? adminRes.value.data.entries || [] : [],
+        advocate: advRes.status === 'fulfilled' ? advRes.value.data.entries || [] : [],
+        client: clientRes.status === 'fulfilled' ? clientRes.value.data.entries || [] : [],
+        loading: false
+      });
+    } catch {
+      setLogs(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const checkHealth = async () => {
+    const startApi = Date.now();
+    try {
+      const { data } = await api.get('/admin/system/health');
+      const ping = Date.now() - startApi;
+      if (data.success) {
+        setHealth({
+          api: { ...data.data.api, ping: ping + 2 },
+          db: { ...data.data.db, ping: ping + 5 },
+          storage: { ...data.data.storage, ping: Math.floor(Math.random() * 5) + 1 },
+          mail: { ...data.data.mail, ping: ping + 15 }
+        });
+      }
+    } catch (err) {
+      setHealth({
+        api: { status: 'down', ping: 0 }, db: { status: 'down', ping: 0 },
+        storage: { status: 'down', ping: 0 }, mail: { status: 'down', ping: 0 }
+      });
+    }
+  };
+
+  // 2. Initial Mount Hook & Health Polling
   useEffect(() => {
-    // 1. Fetch Stats
-    const fetchDashboardData = async () => {
-      try {
-        const [advRes, clientRes, apptRes, verifRes, finRes] = await Promise.allSettled([
-          api.get('/admin/advocates', { params: { limit: 1 } }),
-          api.get('/admin/clients', { params: { limit: 1 } }),
-          api.get('/admin/appointments', { params: { limit: 1 } }),
-          api.get('/admin/advocates', { params: { limit: 1, status: 'Pending' } }),
-          api.get('/admin/system/financials')
-        ]);
-
-        setStats({
-          advocates: advRes.status === 'fulfilled' ? advRes.value.data.pagination.total : 0,
-          clients: clientRes.status === 'fulfilled' ? clientRes.value.data.pagination.total : 0,
-          appointments: apptRes.status === 'fulfilled' ? apptRes.value.data.pagination.total : 0,
-          verifications: verifRes.status === 'fulfilled' ? verifRes.value.data.pagination.total : 0,
-          revenue: finRes.status === 'fulfilled' ? finRes.value.data.data.totalPlatformFees : 0,
-          loading: false
-        });
-      } catch (err) {
-        setStats(prev => ({ ...prev, loading: false }));
-      }
-    };
-
-    // 2. Fetch Logs
-    const fetchLogs = async () => {
-      try {
-        const [adminRes, advRes, clientRes] = await Promise.allSettled([
-          api.get('/admin/activity/admin', { params: { limit: 10 } }),
-          api.get('/admin/activity/advocate', { params: { limit: 10 } }),
-          api.get('/admin/activity/client', { params: { limit: 10 } })
-        ]);
-
-        setLogs({
-          admin: adminRes.status === 'fulfilled' ? adminRes.value.data.entries || [] : [],
-          advocate: advRes.status === 'fulfilled' ? advRes.value.data.entries || [] : [],
-          client: clientRes.status === 'fulfilled' ? clientRes.value.data.entries || [] : [],
-          loading: false
-        });
-      } catch {
-        setLogs(prev => ({ ...prev, loading: false }));
-      }
-    };
-
     fetchDashboardData();
     fetchLogs();
-
-    // 3. Heartbeat Checker
-    const checkHealth = async () => {
-      const startApi = Date.now();
-      try {
-        const { data } = await api.get('/admin/system/health');
-        const ping = Date.now() - startApi;
-        
-        if (data.success) {
-          setHealth({
-            api: { ...data.data.api, ping: ping + 2 },
-            db: { ...data.data.db, ping: ping + 5 },
-            storage: { ...data.data.storage, ping: Math.floor(Math.random() * 5) + 1 }, // Local FS ping
-            mail: { ...data.data.mail, ping: ping + 15 } // SMTP ping simulated relative to API overhead
-          });
-        }
-      } catch (err) {
-        setHealth({
-          api: { status: 'down', ping: 0 },
-          db: { status: 'down', ping: 0 },
-          storage: { status: 'down', ping: 0 },
-          mail: { status: 'down', ping: 0 }
-        });
-      }
-    };
-
     checkHealth();
     
-    // Polling intervals for realtime updates
-    const logInterval = setInterval(fetchLogs, 10000); // Fetch logs every 10s
-    const healthInterval = setInterval(checkHealth, 30000); // Check health every 30s
-    
+    const healthInterval = setInterval(checkHealth, 30000);
+    return () => clearInterval(healthInterval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 3. Log Polling Hook (responds to isMonitoringLogs)
+  useEffect(() => {
+    let logInterval;
+    if (isMonitoringLogs) {
+      logInterval = setInterval(fetchLogs, 10000); // Fetch logs every 10s
+    }
     return () => {
-      clearInterval(logInterval);
-      clearInterval(healthInterval);
+      if (logInterval) clearInterval(logInterval);
     };
-  }, []);
+  }, [isMonitoringLogs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fmtCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val || 0);
   const fmtDate = (d) => new Date(d).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -351,10 +350,27 @@ export default function Dashboard() {
       </div>
 
       {/* Activity Logs Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <LogList title="Admin" data={logs.admin} icon={ShieldCheck} color="text-red-500" />
-        <LogList title="Advocate" data={logs.advocate} icon={Scale} color="text-indigo-500" />
-        <LogList title="Client" data={logs.client} icon={Users} color="text-blue-500" />
+      <div>
+        <div className="flex items-center justify-between mb-3 mt-4">
+          <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <Activity size={16} className="text-blue-500" /> Platform Activity Streams
+          </h2>
+          <button 
+            onClick={() => setIsMonitoringLogs(!isMonitoringLogs)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isMonitoringLogs ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' : 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'}`}
+          >
+            {isMonitoringLogs ? (
+              <><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span> Stop Monitoring</>
+            ) : (
+              <><span className="relative flex h-2 w-2"><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span> Resume Monitoring</>
+            )}
+          </button>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <LogList title="Admin" data={logs.admin} icon={ShieldCheck} color="text-red-500" />
+          <LogList title="Advocate" data={logs.advocate} icon={Scale} color="text-indigo-500" />
+          <LogList title="Client" data={logs.client} icon={Users} color="text-blue-500" />
+        </div>
       </div>
       
     </Layout>
