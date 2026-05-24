@@ -5,6 +5,7 @@ import {
   ShieldCheck, ShieldX, Clock, ChevronLeft, ChevronRight, Eye, X, CheckCircle, XCircle, Search, RefreshCw, Scale
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ExportButtons from '../components/ExportButtons';
 
 const IMG = (p) => p ? `http://localhost:5006/${p.replace(/\\/g, '/')}` : null;
 
@@ -38,6 +39,14 @@ export default function Verifications() {
            a.advId?.toLowerCase().includes(q);
   });
 
+  const exportColumns = ['Advocate ID', 'Name', 'Email', 'State'];
+  const exportData = filteredAdvocates.map(a => ({
+    'Advocate ID': a.advId,
+    'Name': a.name,
+    'Email': a.email,
+    'State': a.state || '—'
+  }));
+
   return (
     <Layout>
       <div className="mb-7 flex items-end justify-between">
@@ -45,9 +54,12 @@ export default function Verifications() {
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Pending Verifications</h1>
           <p className="text-slate-500 text-sm mt-1">Review advocates waiting for KYC approval.</p>
         </div>
-        <button onClick={fetchPending} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
-          <RefreshCw size={15} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButtons data={exportData} columns={exportColumns} filename="pending_verifications" title="Pending Verifications Report" />
+          <button onClick={fetchPending} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
+            <RefreshCw size={15} /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

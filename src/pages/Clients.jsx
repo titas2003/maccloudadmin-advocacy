@@ -7,6 +7,7 @@ import {
   XCircle, Phone, Mail, Calendar, FileText,
   RefreshCw, Filter, User, AlertCircle
 } from 'lucide-react';
+import ExportButtons from '../components/ExportButtons';
 
 const STATUSES = ['All', 'Pending', 'Verified', 'Rejected'];
 const IMG = (p) => p ? `http://localhost:5006/${p.replace(/\\/g, '/')}` : null;
@@ -95,6 +96,17 @@ export default function Clients() {
     setActionLoading(false);
     setBlockModal(null);
   };
+
+  const exportColumns = ['Client ID', 'Name', 'Email', 'Phone', 'Status', 'Blocked', 'Joined'];
+  const exportData = clients.map(c => ({
+    'Client ID': c.clientId || '—',
+    'Name': c.name || '—',
+    'Email': c.email || '—',
+    'Phone': c.phone || '—',
+    'Status': c.vStatus || '—',
+    'Blocked': c.isBlocked ? 'Yes' : 'No',
+    'Joined': fmtDate(c.createdAt)
+  }));
 
   return (
     <Layout>
@@ -235,7 +247,7 @@ export default function Clients() {
                       {appointments.map(appt => (
                         <div key={appt._id} className="flex items-center justify-between px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
                           <div>
-                            <p className="text-xs font-bold text-slate-700">{appt.advId?.name || 'Unknown Advocate'}</p>
+                            <p className="text-xs font-bold text-slate-700">{appt.advocateId?.name || 'Unknown Advocate'}</p>
                             <p className="text-[10px] text-slate-400">{fmtDate(appt.scheduledAt || appt.createdAt)}</p>
                           </div>
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${
@@ -254,15 +266,17 @@ export default function Clients() {
         </>
       )}
 
-      {/* Page header */}
       <div className="mb-7 flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Clients</h1>
           <p className="text-slate-500 text-sm mt-1">View, manage and monitor all registered clients.</p>
         </div>
-        <button onClick={fetchClients} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
-          <RefreshCw size={15} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButtons data={exportData} columns={exportColumns} filename="clients_export" title="Clients Report" />
+          <button onClick={fetchClients} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
+            <RefreshCw size={15} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

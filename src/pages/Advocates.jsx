@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
+import ExportButtons from '../components/ExportButtons';
 import {
   Search, Shield, ShieldCheck, ShieldX, Clock,
   ChevronLeft, ChevronRight, Eye, X, CheckCircle,
@@ -10,6 +11,7 @@ import {
 
 const STATUSES = ['All', 'Pending', 'Verified', 'Rejected'];
 const IMG = (p) => p ? `http://localhost:5006/${p.replace(/\\/g, '/')}` : null;
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 const STATUS_CFG = {
   Verified: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', icon: <ShieldCheck size={11} /> },
@@ -102,6 +104,16 @@ export default function Advocates() {
     verified: advocates.filter(a => a.vStatus === 'Verified').length,
     rejected: advocates.filter(a => a.vStatus === 'Rejected').length,
   };
+
+  const exportColumns = ['Advocate ID', 'Name', 'Email', 'Phone', 'Status', 'Joined'];
+  const exportData = advocates.map(a => ({
+    'Advocate ID': a.advId || '—',
+    'Name': a.name || '—',
+    'Email': a.email || '—',
+    'Phone': a.phone || '—',
+    'Status': a.vStatus || '—',
+    'Joined': fmtDate(a.createdAt)
+  }));
 
   return (
     <Layout>
@@ -265,9 +277,12 @@ export default function Advocates() {
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Advocates</h1>
           <p className="text-slate-500 text-sm mt-1">Manage, verify and monitor all registered advocates.</p>
         </div>
-        <button onClick={fetchAdvocates} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
-          <RefreshCw size={15} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButtons data={exportData} columns={exportColumns} filename="advocates_export" title="Advocates Report" />
+          <button onClick={fetchAdvocates} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
+            <RefreshCw size={15} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
 import {
-  Settings, AlertTriangle, Send, RefreshCw, CheckCircle, XCircle, Database, Users, ShieldAlert, IndianRupee, Save, Edit3
+  Settings, AlertTriangle, Send, RefreshCw, CheckCircle, XCircle, Database, Users, ShieldAlert, IndianRupee, Save, Edit3, FolderTree, Plus, Trash2, Power
 } from 'lucide-react';
+import ExportButtons from '../components/ExportButtons';
 
 export default function AppSettings() {
   const [loadingAction, setLoadingAction] = useState(null);
@@ -19,6 +20,12 @@ export default function AppSettings() {
   // Notification Modal State
   const [notifyModal, setNotifyModal] = useState({ show: false, status: 'confirm' }); // confirm | sending | done
   const [progress, setProgress] = useState(0);
+
+  // Category Management State
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', parent: '', isActive: true, slug: '' });
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -36,8 +43,20 @@ export default function AppSettings() {
     finally { setLoadingPolicies(false); }
   };
 
+  const fetchCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const { data } = await api.get('/admin/categories?flat=true');
+      if (data.success) {
+        setCategories(data.data);
+      }
+    } catch { /* silent */ }
+    finally { setLoadingCategories(false); }
+  };
+
   useEffect(() => {
     fetchPolicies();
+    fetchCategories();
   }, []);
 
   const handleDropSessions = async () => {
@@ -149,6 +168,86 @@ export default function AppSettings() {
     }
     setLoadingAction(null);
   };
+
+  const handleSaveCategory = async (e) => {
+    e.preventDefault();
+    if (!categoryForm.name.trim()) return;
+    
+    setLoadingAction('save_category');
+    try {
+      const payload = {
+        name: categoryForm.name,
+        description: categoryForm.description,
+        parent: categoryForm.parent || null,
+        isActive: categoryForm.isActive,
+        slug: categoryForm.slug || undefined
+      };
+
+      let res;
+      if (editingCategoryId) {
+        res = await api.patch(`/admin/categories/${editingCategoryId}`, payload);
+      } else {
+        res = await api.post('/admin/categories', payload);
+      }
+
+      if (res.data.success) {
+        showToast(editingCategoryId ? 'Category updated' : 'Category created');
+        setCategoryForm({ name: '', description: '', parent: '', isActive: true, slug: '' });
+        setEditingCategoryId(null);
+        fetchCategories();
+      } else {
+        showToast(res.data.message, 'error');
+      }
+    } catch (e) {
+      showToast(e.response?.data?.message || 'Failed to save category', 'error');
+    }
+    setLoadingAction(null);
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!window.confirm('Are you sure you want to deactivate this category? Subcategories will also be deactivated.')) return;
+    setLoadingAction(`delete_category_${id}`);
+    try {
+      const { data } = await api.delete(`/admin/categories/${id}`);
+      if (data.success) {
+        showToast('Category deactivated');
+        fetchCategories();
+      } else {
+        showToast(data.message, 'error');
+      }
+    } catch (e) {
+      showToast(e.response?.data?.message || 'Failed to deactivate category', 'error');
+    }
+    setLoadingAction(null);
+  };
+
+  const startEditingCategory = (cat) => {
+    setEditingCategoryId(cat._id);
+    setCategoryForm({
+      name: cat.name,
+      description: cat.description || '',
+      parent: cat.parent || '',
+      isActive: cat.isActive,
+      slug: cat.slug || ''
+    });
+    // Scroll to form or just let user scroll
+  };
+
+  const cancelEditingCategory = () => {
+    setEditingCategoryId(null);
+    setCategoryForm({ name: '', description: '', parent: '', isActive: true, slug: '' });
+  };
+
+  const exportColumns = ['Name', 'Slug', 'Parent', 'Status'];
+  const exportData = categories.map(cat => {
+    const parentCat = categories.find(c => c._id === cat.parent);
+    return {
+      'Name': cat.name,
+      'Slug': cat.slug,
+      'Parent': parentCat ? parentCat.name : 'None',
+      'Status': cat.isActive ? 'Active' : 'Inactive'
+    };
+  });
 
   return (
     <Layout>
@@ -390,6 +489,185 @@ export default function AppSettings() {
               </table>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Category Management Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm mt-6">
+        <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600"><FolderTree size={18} /></div>
+            <div>
+              <h2 className="font-bold text-slate-800">Category Management</h2>
+              <p className="text-xs text-slate-500">Manage court categories and specializations for advocates.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <ExportButtons data={exportData} columns={exportColumns} filename="categories_export" title="Categories Report" />
+          </div>
+        </div>
+        
+        <div className="p-5 grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Category Form */}
+          <div className="xl:col-span-1 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+            <h3 className="font-bold text-slate-700 mb-4">{editingCategoryId ? 'Edit Category' : 'Create New Category'}</h3>
+            <form onSubmit={handleSaveCategory} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Category Name *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={categoryForm.name}
+                  onChange={e => setCategoryForm({...categoryForm, name: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  placeholder="e.g. High Court"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Slug (Optional)</label>
+                <input 
+                  type="text" 
+                  value={categoryForm.slug}
+                  onChange={e => setCategoryForm({...categoryForm, slug: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  placeholder="e.g. high-court"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Parent Category</label>
+                <select 
+                  value={categoryForm.parent}
+                  onChange={e => setCategoryForm({...categoryForm, parent: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 bg-white"
+                >
+                  <option value="">-- None (Top Level) --</option>
+                  {categories.map(cat => (
+                    // Prevent setting itself as parent
+                    cat._id !== editingCategoryId && (
+                      <option key={cat._id} value={cat._id}>{cat.name}</option>
+                    )
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">Description</label>
+                <textarea 
+                  value={categoryForm.description}
+                  onChange={e => setCategoryForm({...categoryForm, description: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none h-20"
+                  placeholder="Brief description..."
+                />
+              </div>
+              
+              {editingCategoryId && (
+                <div className="flex items-center gap-2 mt-2">
+                  <input 
+                    type="checkbox" 
+                    id="isActive"
+                    checked={categoryForm.isActive}
+                    onChange={e => setCategoryForm({...categoryForm, isActive: e.target.checked})}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <label htmlFor="isActive" className="text-sm font-semibold text-slate-600">Active</label>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button 
+                  type="submit"
+                  disabled={loadingAction === 'save_category'}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-all shadow-sm"
+                >
+                  {loadingAction === 'save_category' ? <RefreshCw size={16} className="animate-spin" /> : (editingCategoryId ? <Save size={16} /> : <Plus size={16} />)}
+                  {editingCategoryId ? 'Update' : 'Create'}
+                </button>
+                {editingCategoryId && (
+                  <button 
+                    type="button"
+                    onClick={cancelEditingCategory}
+                    className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-bold rounded-lg transition-all"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Category List */}
+          <div className="xl:col-span-2">
+            {loadingCategories ? (
+              <p className="text-slate-400 text-sm py-4">Loading categories...</p>
+            ) : categories.length === 0 ? (
+              <div className="text-center py-8 border border-slate-100 rounded-xl bg-slate-50/50">
+                <p className="text-slate-500 mb-3">No categories found.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      <th className="px-4 py-3">Name</th>
+                      <th className="px-4 py-3">Slug</th>
+                      <th className="px-4 py-3">Parent</th>
+                      <th className="px-4 py-3 text-center">Status</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {categories.map(cat => {
+                      const parentCat = categories.find(c => c._id === cat.parent);
+                      return (
+                        <tr key={cat._id} className={editingCategoryId === cat._id ? 'bg-emerald-50/50' : 'hover:bg-slate-50/50'}>
+                          <td className="px-4 py-3 font-bold text-slate-700">
+                            {cat.name}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 font-mono text-xs">
+                            {cat.slug}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {parentCat ? <span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">{parentCat.name}</span> : <span className="text-xs text-slate-400 italic">None</span>}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {cat.isActive ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-bold">
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold">
+                                Inactive
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => startEditingCategory(cat)}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Edit"
+                              >
+                                <Edit3 size={14} />
+                              </button>
+                              {cat.isActive && (
+                                <button 
+                                  onClick={() => handleDeleteCategory(cat._id)}
+                                  disabled={loadingAction === `delete_category_${cat._id}`}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                  title="Deactivate"
+                                >
+                                  {loadingAction === `delete_category_${cat._id}` ? <RefreshCw size={14} className="animate-spin" /> : <Power size={14} />}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

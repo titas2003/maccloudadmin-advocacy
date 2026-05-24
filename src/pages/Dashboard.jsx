@@ -36,7 +36,15 @@ export default function Dashboard() {
   });
 
   const [healthModal, setHealthModal] = useState(null);
-  const [isMonitoringLogs, setIsMonitoringLogs] = useState(true);
+
+  const [isMonitoringLogs, setIsMonitoringLogs] = useState(() => {
+    const saved = localStorage.getItem('isMonitoringLogs');
+    return saved !== 'false';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('isMonitoringLogs', isMonitoringLogs);
+  }, [isMonitoringLogs]);
 
   // 1. Define Fetch Functions
   const fetchDashboardData = async () => {

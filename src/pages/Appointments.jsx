@@ -5,6 +5,7 @@ import {
   CalendarDays, CheckCircle, Clock, XCircle, Search, Filter,
   ChevronLeft, ChevronRight, Eye, RefreshCw, X, AlertCircle
 } from 'lucide-react';
+import ExportButtons from '../components/ExportButtons';
 
 const STATUSES = ['All', 'Pending', 'Scheduled', 'Completed', 'Cancelled', 'Rejected'];
 
@@ -118,6 +119,15 @@ export default function Appointments() {
   const toggleExpand = (advId) => {
     setExpandedAdv(prev => prev === advId ? null : advId);
   };
+
+  const exportColumns = ['Appointment ID', 'Advocate Name', 'Client Name', 'Scheduled Date', 'Status'];
+  const exportData = filteredAppointments.map(a => ({
+    'Appointment ID': a._id,
+    'Advocate Name': a.advocateId?.name || '—',
+    'Client Name': a.clientId?.name || '—',
+    'Scheduled Date': fmtDate(a.scheduledAt || a.createdAt),
+    'Status': a.status
+  }));
 
   return (
     <Layout>
@@ -233,15 +243,17 @@ export default function Appointments() {
         </>
       )}
 
-      {/* Page header */}
       <div className="mb-7 flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Appointments</h1>
           <p className="text-slate-500 text-sm mt-1">Monitor and manage all platform appointments.</p>
         </div>
-        <button onClick={fetchAppointments} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
-          <RefreshCw size={15} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButtons data={exportData} columns={exportColumns} filename="appointments_export" title="Appointments Report" />
+          <button onClick={fetchAppointments} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
+            <RefreshCw size={15} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

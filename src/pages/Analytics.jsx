@@ -79,21 +79,69 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm min-h-[300px] flex items-center justify-center">
-               <div className="text-center">
-                 <PieChart size={48} className="text-slate-200 mx-auto mb-3" />
-                 <p className="text-slate-400 font-semibold text-sm">Revenue Distribution Chart</p>
-                 <p className="text-slate-400 text-xs mt-1">More visualisations coming soon</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* Revenue Trends */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col col-span-1 lg:col-span-2">
+               <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><BarChart2 size={16} className="text-blue-500" /> Revenue Timeline (Last 6 Months)</h3>
+               {stats?.revenueTrends && stats.revenueTrends.length > 0 ? (
+                 <div className="flex-1 flex items-end justify-between gap-2 mt-4 pt-4 border-t border-slate-100">
+                   {stats.revenueTrends.map((t, i) => {
+                     // Normalize height relative to max revenue
+                     const maxRev = Math.max(...stats.revenueTrends.map(x => x.revenue));
+                     const hPct = maxRev > 0 ? (t.revenue / maxRev) * 100 : 0;
+                     return (
+                       <div key={i} className="flex flex-col items-center flex-1 group">
+                         <div className="text-[10px] font-bold text-slate-400 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                           {fmtCurrency(t.revenue)}
+                         </div>
+                         <div className="w-full max-w-[40px] bg-blue-100 rounded-t-md relative h-32 flex items-end overflow-hidden">
+                            <div className="w-full bg-blue-500 rounded-t-md transition-all duration-500" style={{ height: `${hPct}%` }}></div>
+                         </div>
+                         <div className="text-xs font-semibold text-slate-500 mt-2">{t.label.split(' ')[0]}</div>
+                       </div>
+                     );
+                   })}
+                 </div>
+               ) : (
+                 <div className="flex-1 flex items-center justify-center text-slate-400 text-xs italic">No revenue data available</div>
+               )}
+            </div>
+
+            {/* Location Trends */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col">
+               <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Activity size={16} className="text-green-500" /> Client Locations</h3>
+               <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+                 {stats?.locationTrends && stats.locationTrends.length > 0 ? (
+                   stats.locationTrends.map((loc, i) => (
+                     <div key={i} className="flex items-center justify-between">
+                       <span className="text-sm font-semibold text-slate-600 truncate max-w-[150px]">{loc.location}</span>
+                       <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md">{loc.count} Users</span>
+                     </div>
+                   ))
+                 ) : (
+                   <p className="text-slate-400 text-xs italic text-center py-4">No location data found</p>
+                 )}
                </div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm min-h-[300px] flex items-center justify-center">
-               <div className="text-center">
-                 <Activity size={48} className="text-slate-200 mx-auto mb-3" />
-                 <p className="text-slate-400 font-semibold text-sm">Activity Heatmap</p>
-                 <p className="text-slate-400 text-xs mt-1">Platform usage trends coming soon</p>
+
+            {/* Appointment Status Trends */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col col-span-1 lg:col-span-3">
+               <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><PieChart size={16} className="text-purple-500" /> Appointment Funnel</h3>
+               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                 {stats?.appointmentTrends && stats.appointmentTrends.length > 0 ? (
+                   stats.appointmentTrends.map((appt, i) => (
+                     <div key={i} className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-center">
+                       <p className="text-2xl font-black text-slate-700">{appt.count}</p>
+                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">{appt.status}</p>
+                     </div>
+                   ))
+                 ) : (
+                   <p className="text-slate-400 text-xs italic col-span-full text-center">No appointments tracked</p>
+                 )}
                </div>
             </div>
+
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import api from '../services/api';
 import {
   DollarSign, RefreshCw, ChevronLeft, ChevronRight, CheckCircle, Clock, XCircle, Search, Filter
 } from 'lucide-react';
+import ExportButtons from '../components/ExportButtons';
 
 const STATUSES = ['All', 'pending', 'completed', 'failed', 'refunded'];
 
@@ -56,6 +57,17 @@ export default function Financials() {
            (t.stripeSessionId && t.stripeSessionId.toLowerCase().includes(q));
   });
 
+  const exportColumns = ['Txn ID', 'Type', 'Client', 'Advocate', 'Amount', 'Status', 'Date'];
+  const exportData = filteredTxns.map(t => ({
+    'Txn ID': t.stripeSessionId?.slice(-8) || t._id.slice(-8),
+    'Type': t.type === 'deposit' ? 'Client Payment' : 'Advocate Payout',
+    'Client': t.clientId?.name || 'Unknown Client',
+    'Advocate': t.advocateId?.name || 'Unknown Advocate',
+    'Amount': `₹${t.amountPaidByClient}`,
+    'Status': t.status,
+    'Date': fmtDate(t.createdAt)
+  }));
+
   return (
     <Layout>
       <div className="mb-7 flex items-end justify-between">
@@ -63,9 +75,12 @@ export default function Financials() {
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Financials</h1>
           <p className="text-slate-500 text-sm mt-1">Review all platform transactions and payouts.</p>
         </div>
-        <button onClick={fetchTransactions} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
-          <RefreshCw size={15} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <ExportButtons data={exportData} columns={exportColumns} filename="financials_export" title="Financials Report" />
+          <button onClick={fetchTransactions} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all bg-white shadow-sm">
+            <RefreshCw size={15} /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
